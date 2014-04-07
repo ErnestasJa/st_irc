@@ -4,7 +4,7 @@ ST_IRC is a simple twitch irc client written in python, using gtk3 for gui
 
 Usage
 ======
-Don't use unless you can ~~dance~~ code.
+Don't use unless you think you can ~~dance~~ code.
 
 
 Connection window
