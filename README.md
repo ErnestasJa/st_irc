@@ -1,7 +1,13 @@
 ST_IRC
 ======
 
+About
+======
 simple twitch irc client written in python, using gtk3 for gui
+
+Usage
+======
+Don't use unless you can ~~dance~~ code.
 
 
 Connection window
