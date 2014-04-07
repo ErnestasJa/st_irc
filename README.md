@@ -1,4 +1,4 @@
-st_irc
+ST_IRC
 ======
 
 simple twitch irc client written in python, using gtk3 for gui
