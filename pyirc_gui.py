@@ -296,7 +296,7 @@ class KappaStats:
         self.kappa_re = re.compile("(?=((^|\s)Kappa(\s|$)))")
         
     def on_message(self, user, channel, msg):
-        if msg.strip() == "!kappacount":
+        if msg.strip() == "!kpc":
             ch = self.irc_app.channels[channel]
             ch.echo("<<<<<<<<<<<<<<<<<<<<<<<<<  Counting Kappas  >>>>>>>>>>>>>>>>>>>")
             self.irc_app.irc.send_msg("PRIVMSG " + channel + " :Current kappa count: " + str(self.kappa_count))
