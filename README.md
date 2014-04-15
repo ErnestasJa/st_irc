@@ -5,8 +5,7 @@ ST_IRC is meant only to be used to connect to single irc network (such as Twitch
 
 Usage
 ======
-Install python 3.x, install gtk3 packages, download scripts, run pyirc_guy.py
-Password for twitch.tv can aquired from: https://twitchapps.com/tmi
+Install python 3.x, install gtk3 packages, download scripts, run pyirc_guy.py. Password for twitch.tv can aquired from: https://twitchapps.com/tmi
 
 Hopefully it should run without too much trouble
 
