@@ -51,4 +51,4 @@ Channel join window
 
 Some casual twitch chatting
 ======
-![ScreenShot](http://puu.sh/89BkU)
+![ScreenShot](http://puu.sh/8ag3K.png)
