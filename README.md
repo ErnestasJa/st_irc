@@ -17,7 +17,6 @@ Features
 * User list
 * Send, receive chat messages
 * Save conection information
-* 
 
 Planned features
 ======
@@ -35,7 +34,8 @@ Known bugs
 * Exit button in menu does nothing
 * Leave channel
 * Uncommonly occuring error on _decode("utf-8")_
-* IRC connection tread not closing properly on exit.
+* IRC connection thread not closing properly on exit.
+* Duplicate client user nick name entry in user list.
 
 
 
