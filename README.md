@@ -18,6 +18,7 @@ Features
 * Save conection information
 * Automatic chat scrolling after getting new message
 * Nick name highlighting
+* Channel status, game query
 
 Planned features
 ======
