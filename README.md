@@ -17,6 +17,8 @@ Features
 * User list
 * Send, receive chat messages
 * Save conection information
+* Automatic chat scrolling after getting new message
+* Nick name highlighting
 
 Planned features
 ======
