@@ -1,6 +1,6 @@
 About
 ======
-ST_IRC is a simple twitch irc client written in python, using gtk3 for gui
+ST_IRC is a simple twitch irc client written in python, using gtk3 for gui.
 ST_IRC is meant only to be used to connect to single irc network (such as Twitch.tv)
 
 Usage
