@@ -2,12 +2,14 @@
 
 import socket
 from gi.repository import GLib
+import re
 
 class PyIRC:
 
     def __init__(self):
         self.connected = False
         self.dc_callback = None
+        self.parse_cmd_re = re.compile("^(:(?P<prefix>\S+) )?(?P<command>\S+)( (?!:)(?P<params>.+?))?( :(?P<trail>.+))?$")
 
     def is_connected(self):
         return self.connected
@@ -28,19 +30,19 @@ class PyIRC:
         
         self.connection_socket.send(bytes(msg+"\n", 'UTF-8'))
         
-    def parse_messages(self, my_callback):
+    def parse_messages(self, my_callback, **kwargs):
         BUFFER_SIZE = 4096
         readbuffer=""
         
-        while 1:
+        while self.connected:
             try:
                 cur_data = self.connection_socket.recv(BUFFER_SIZE)
             except Exception as e:
                 print(str(e))
                 self.connected = False
-                break;
+                return
             
-            readbuffer = readbuffer + cur_data.decode("utf-8")
+            readbuffer = readbuffer + cur_data.decode("utf-8", errors = 'ignore')
             temp = str.split(readbuffer, "\n")
             readbuffer = temp.pop( )
 
@@ -51,7 +53,8 @@ class PyIRC:
                 if(tokens[0]=="PING"):
                     self.send_msg("PONG " + str(tokens[1]) + "\r\n")
                 else:
-                    GLib.idle_add(my_callback,line, priority = GLib.PRIORITY_HIGH )
+                    groups = self.parse_cmd_re.match(line)
+                    GLib.idle_add(my_callback,groups)
             
 
     def disconnect(self):

@@ -3,7 +3,9 @@
 import re
 import pickle
 from gi.repository import Gtk, Gdk, GLib, Pango
+
 from pyirc_connection import PyIRC
+import pyirc_tools
 
 try:
     import thread
@@ -22,6 +24,8 @@ class Channel:
         self.bold_tag = self.chat_log.create_tag("b", weight=Pango.Weight.BOLD)
         self.name = name
 
+        self.info = {}
+        
     def echo(self, message, *tags):
         self.chat_log.insert_with_tags(self.chat_log.get_end_iter(),message+"\n",*tags)
 
@@ -45,17 +49,18 @@ class Channel:
     
 
 class Task:
-    def __init__(self, my_task, my_cb):
+    def __init__(self, my_task, *args, **kw_args):
        self.function = my_task
-       self.my_cb = my_cb
+       self.args = args
+       self.kw_args = kw_args
        self.thread = None
 
-    def _start(self):
-        self.function(self.my_cb)
+    def _start(self, *args, **kw_args):
+        self.function(*args, **kw_args)
 
     def start(self):
         self._stopped = False
-        self.thread = threading.Thread(target=self._start)
+        self.thread = threading.Thread(target=self._start, args = self.args, kwargs = self.kw_args)
         self.thread.start()
 
     def stop(self):
@@ -67,6 +72,7 @@ class PyIRC_Application:
 
     def __init__(self):
         self.kps = KappaStats(self)
+        self.refresh_task = None
 
         self.builder = Gtk.Builder()
         self.builder.add_from_file("pyirc_interface.glade")
@@ -85,6 +91,7 @@ class PyIRC_Application:
         self.connect_btn        = self.builder.get_object("connect_btn")
         self.join_channel_btn   = self.builder.get_object("join_channel_btn")
         self.disconnect_btn     = self.builder.get_object("disconnect_btn")
+        self.exit_btn           = self.builder.get_object("exit_btn")
         self.cd_save_btn        = self.builder.get_object("cd_save_btn")
         self.cd_connect_btn     = self.builder.get_object("cd_connect_btn")
         self.cd_cancel_btn      = self.builder.get_object("cd_cancel_btn")
@@ -93,12 +100,17 @@ class PyIRC_Application:
         self.send_btn           = self.builder.get_object("send_btn")
         self.user_list          = self.builder.get_object("user_list")
 
+        self.channel_info_textview    = self.builder.get_object("channel_info_textview")
+        self.channel_info_textview.get_buffer().create_tag("b", weight=Pango.Weight.BOLD)
+        self.refresh_channel_info_btn = self.builder.get_object("refresh_channel_info_btn")
+
         #signals
         self.window.connect("delete-event", Gtk.main_quit)
-        self.channels_notebook.connect("switch-page", self.on_switch_channel)
+        self.channels_notebook.connect_after("switch-page", self.on_switch_channel)
         self.connect_btn.connect("activate", self.on_connect_btn_clicked)
         self.join_channel_btn.connect("activate", self.on_join_channel_btn_clicked)
         self.disconnect_btn.connect("activate", self.on_disconnect_btn_clicked)
+        self.exit_btn.connect("activate", self.on_exit_btn_clicked)
         self.send_btn.connect("clicked", self.on_send_btn_clicked)
         self.cd_save_btn.connect("clicked", self.on_cd_save_btn_clicked)
         self.cd_connect_btn.connect("clicked", self.on_cd_connect_btn_clicked)
@@ -106,6 +118,8 @@ class PyIRC_Application:
         self.cj_join_btn.connect("clicked", self.on_cj_join_btn_clicked)
         self.cj_cancel_btn.connect("clicked", self.on_cj_cancel_btn_clicked)
         self.entry.connect("key-press-event", self.on_entry_key_pressed_enter)
+
+        self.refresh_channel_info_btn.connect("clicked",  self.on_refresh_channel_info_btn_clicked)
 
         #Channels
         self.channels = {}
@@ -117,8 +131,19 @@ class PyIRC_Application:
         # show main window
         self.load_saved_con_info()
         self.window.show_all()
-        self.parse_cmd_re = re.compile("^(:(?P<prefix>\S+) )?(?P<command>\S+)( (?!:)(?P<params>.+?))?( :(?P<trail>.+))?$")
         self.parse_user_list_cmd_re = re.compile("^(?P<name>\S+) = (?P<channel>\S+)$")
+
+    def get_active_channel(self):
+        page = self.channels_notebook.get_nth_page(self.channels_notebook.get_current_page())
+        if page == -1:
+            return None
+        else:
+            active_channel = self.channels_notebook.get_tab_label_text(page).strip()
+
+            if active_channel in self.channels:
+                return self.channels[active_channel]
+            else:
+                return None
 
     def on_delete_event(self, widget, event, data =None):
         if self.irc.connected:
@@ -127,8 +152,8 @@ class PyIRC_Application:
             
         Gtk.main_quit()
 
-    def on_msg(self, msg):
-        groups = self.parse_cmd_re.match(msg)
+    def on_msg(self, groups):
+
         #print(msg)
         
         output = ""
@@ -182,6 +207,7 @@ class PyIRC_Application:
         if name in self.channels:
             self.textview.set_buffer(self.channels[name].chat_log)
             self.user_list.set_model(self.channels[name].users)
+            self.start_refresh()
         
 
     def on_connect_btn_clicked(self, widget):
@@ -194,6 +220,28 @@ class PyIRC_Application:
             return
             
         self.connection_dialog.show_all();
+
+    def on_disconnect_btn_clicked(self, widget):
+        if self.irc.connected:
+            self.channels = {}
+            while self.channels_notebook.get_current_page() != -1:
+                self.channels_notebook.remove_page(self.channels_notebook.get_current_page())
+            self.channels_notebook.show_all()
+            self.irc.disconnect()
+
+            self.textview.set_buffer(Gtk.TextBuffer())
+            self.user_list.set_model(Gtk.ListStore(str))
+
+    def on_exit_btn_clicked(self, widget):
+        if self.irc.connected:
+            self.channels = {}
+            while self.channels_notebook.get_current_page() != -1:
+                self.channels_notebook.remove_page(self.channels_notebook.get_current_page())
+            self.channels_notebook.show_all()
+            self.irc.disconnect()
+
+            self.textview.set_buffer(Gtk.TextBuffer())
+            self.user_list.set_model(Gtk.ListStore(str))
 
     def on_join_channel_btn_clicked(self, widget):
         if self.irc.is_connected():
@@ -230,14 +278,6 @@ class PyIRC_Application:
     def on_entry_key_pressed_enter(self, widget, ev, data=None):
         if ev.keyval == Gdk.KEY_Return:
             self.evaluate_entry_box()
-
-    def on_disconnect_btn_clicked(self, widget):
-        if self.irc.connected:
-            self.channels = {}
-            while self.channels_notebook.get_current_page() != -1:
-                self.channels_notebook.remove_page(self.channels_notebook.get_current_page())
-            self.channels_notebook.show_all()
-            self.irc.disconnect()
     
     def on_cd_save_btn_clicked(self, widget):
         info = {}
@@ -288,6 +328,41 @@ class PyIRC_Application:
     def on_cj_cancel_btn_clicked(self, widget):
         self.join_channel_dialog.hide();
 
+    def start_refresh(self):
+        tb = self.channel_info_textview.get_buffer()
+        tb.delete(tb.get_start_iter(),tb.get_end_iter())
+        
+        if self.get_active_channel() is not None and self.refresh_task is None:
+            self.refresh_task = Task(pyirc_tools.PyIRC_Twitch_Channel_Status_Parser,self.get_active_channel().name,self.on_refresh_channel_info)
+            self.refresh_task.start()
+
+    def on_refresh_channel_info_btn_clicked(self, widget):
+        self.start_refresh()
+        print("refreshing")
+
+    def on_refresh_channel_info(self, channel, data):
+        if self.refresh_task is not None :
+            self.refresh_task.stop()
+            self.refresh_task = None
+            
+            tb = self.channel_info_textview.get_buffer()
+            tb.insert_with_tags_by_name(tb.get_end_iter(), "Channel : ", "b")
+            tb.insert(tb.get_end_iter(), channel + "\n")
+            
+            tb.insert_with_tags_by_name(tb.get_end_iter(), "Status : ", "b")
+            tb.insert(tb.get_end_iter(), ("Offline" if data["stream"]==None else "Online") + "\n")
+
+            if data["stream"]!=None :
+                tb.insert_with_tags_by_name(tb.get_end_iter(), "Game : ", "b")
+                tb.insert(tb.get_end_iter(), data["stream"]["game"] + "\n")
+
+                tb.insert_with_tags_by_name(tb.get_end_iter(), "Title : ", "b")
+                tb.insert(tb.get_end_iter(), data["stream"]["channel"]["status"] + "\n")
+            
+        else:
+            print("Refresh task is None.")
+        print("done refreshing")
+
 
 class KappaStats:
     def __init__(self, irc_app):
@@ -303,7 +378,6 @@ class KappaStats:
         
         
         self.kappa_count += len(self.kappa_re.findall(msg))
-    
 
 app = PyIRC_Application()
-Gtk.main()
+Gtk.main( )
