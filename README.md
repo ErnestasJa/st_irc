@@ -20,21 +20,10 @@ Features
 * Nick name highlighting
 * Channel status, game query
 
-Planned features
-======
-The list might get longer in future.
-* Leave channel
-
-Not planned features
-======
-These features are not planned to be implement due to the time and or other things it will take for them to be implemented.
-* Emoticons
-* Plugin system (probably most usefull for chat bots)
-
 Known bugs
 ======
 * Exit button in menu does nothing
-* Leave channel
+* No way to leave channel
 * Uncommonly occuring error on _decode("utf-8")_
 * IRC connection thread not closing properly on exit.
 * Duplicate client user nick name entry in user list.
